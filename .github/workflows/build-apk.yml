@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
@@ -37,24 +37,41 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
 
+      - name: Launch-test APK in emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell am start -W -n com.adelaida.ritm/.MainActivity
+            sleep 4
+            adb shell pidof com.adelaida.ritm
+            adb logcat -d -t 500 | grep -E "FATAL EXCEPTION|AndroidRuntime|com.adelaida.ritm" > launch-log.txt || true
+            if grep -q "FATAL EXCEPTION" launch-log.txt; then
+              cat launch-log.txt
+              exit 1
+            fi
+
       - name: Prepare APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.1.apk
 
       - name: Publish direct APK download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.1.0 >/dev/null 2>&1; then
-            gh release upload v0.1.0 Ritm-0.1.0.apk --clobber
+          if gh release view v0.1.1 >/dev/null 2>&1; then
+            gh release upload v0.1.1 Ritm-0.1.1.apk --clobber
           else
-            gh release create v0.1.0 Ritm-0.1.0.apk \
-              --title "Ритм 0.1.0" \
-              --notes "Первая Android-версия календаря цикла."
+            gh release create v0.1.1 Ritm-0.1.1.apk               --title "Ритм 0.1.1"               --notes "Исправленная Android-версия, проверенная запуском в эмуляторе."
           fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ritm-0.1.0-apk
-          path: Ritm-0.1.0.apk
+          name: Ritm-0.1.1-apk
+          path: Ritm-0.1.1.apk
           if-no-files-found: error

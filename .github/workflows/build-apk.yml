@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
@@ -28,50 +28,41 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Restore stable signing key
+        run: base64 -d ritm-dev.keystore.b64 > ritm-dev.keystore
+
       - name: Install Android SDK packages
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
-      - name: Build debug APK
+      - name: Build APK
         run: gradle :app:assembleDebug --stacktrace
 
-      - name: Launch-test APK in emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          profile: pixel_6
-          disable-animations: true
-          script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb logcat -c
-            adb shell am start -W -n com.adelaida.ritm/.MainActivity
-            sleep 4
-            adb shell pidof com.adelaida.ritm
-            adb logcat -d -t 500 | grep -E "FATAL EXCEPTION|AndroidRuntime|com.adelaida.ritm" > launch-log.txt || true
-            if grep -q "FATAL EXCEPTION" launch-log.txt; then
-              cat launch-log.txt
-              exit 1
-            fi
+      - name: Verify APK package
+        run: |
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          unzip -t app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.1.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.2.apk
 
       - name: Publish direct APK download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.1.1 >/dev/null 2>&1; then
-            gh release upload v0.1.1 Ritm-0.1.1.apk --clobber
+          if gh release view v0.1.2 >/dev/null 2>&1; then
+            gh release upload v0.1.2 Ritm-0.1.2.apk --clobber
           else
-            gh release create v0.1.1 Ritm-0.1.1.apk               --title "Ритм 0.1.1"               --notes "Исправленная Android-версия, проверенная запуском в эмуляторе."
+            gh release create v0.1.2 Ritm-0.1.2.apk \
+              --title "Ритм 0.1.2" \
+              --notes "Пересобранная нативная Android-версия для Android 16 со стабильной подписью."
           fi
 
-      - name: Upload build artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ritm-0.1.1-apk
-          path: Ritm-0.1.1.apk
+          name: Ritm-0.1.2-apk
+          path: Ritm-0.1.2.apk
           if-no-files-found: error

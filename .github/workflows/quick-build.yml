@@ -1,0 +1,51 @@
+name: Quick APK Build
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Restore signing key
+        run: base64 -d ritm-dev.keystore.b64 > ritm-dev.keystore
+      - name: Install SDK
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Build
+        run: gradle :app:assembleDebug --stacktrace
+      - name: Verify
+        run: |
+          "$ANDROID_SDK_ROOT/build-tools/36.0.0/apksigner" verify --verbose app/build/outputs/apk/debug/app-debug.apk
+          unzip -t app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.3.apk
+          if gh release view v0.1.3 >/dev/null 2>&1; then
+            gh release upload v0.1.3 Ritm-0.1.3.apk --clobber
+          else
+            gh release create v0.1.3 Ritm-0.1.3.apk --title "Ритм 0.1.3" --notes "Отмеченные дни месячных теперь видны прямо в календаре."
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ritm-0.1.3-apk
+          path: Ritm-0.1.3.apk

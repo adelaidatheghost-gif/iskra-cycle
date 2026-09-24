@@ -50,23 +50,23 @@ jobs:
           unzip -t app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.2.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk Ritm-0.1.3.apk
 
       - name: Publish direct APK download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.1.2 >/dev/null 2>&1; then
-            gh release upload v0.1.2 Ritm-0.1.2.apk --clobber
+          if gh release view v0.1.3 >/dev/null 2>&1; then
+            gh release upload v0.1.3 Ritm-0.1.3.apk --clobber
           else
-            gh release create v0.1.2 Ritm-0.1.2.apk \
-              --title "Ритм 0.1.2" \
-              --notes "Пересобранная нативная Android-версия для Android 16 со стабильной подписью."
+            gh release create v0.1.3 Ritm-0.1.3.apk \
+              --title "Ритм 0.1.3" \
+              --notes "Календарь с видимыми отметками месячных, прогноза и фертильных дней."
           fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Ritm-0.1.2-apk
-          path: Ritm-0.1.2.apk
+          name: Ritm-0.1.3-apk
+          path: Ritm-0.1.3.apk
           if-no-files-found: error

@@ -165,7 +165,14 @@ public class MainActivity extends Activity {
         periodButton = button("Отметить месячные");
         periodButton.setOnClickListener(v -> {
             String key = selected.toString();
-            if (periodDays.contains(key)) periodDays.remove(key); else periodDays.add(key);
+            if (periodDays.contains(key)) {
+                periodDays.remove(key);
+            } else {
+                int length = prefs.getInt("period_length", 5);
+                for (int i = 0; i < length; i++) {
+                    periodDays.add(selected.plusDays(i).toString());
+                }
+            }
             prefs.edit().putStringSet("period_days", new HashSet<>(periodDays)).apply();
             refresh();
         });
